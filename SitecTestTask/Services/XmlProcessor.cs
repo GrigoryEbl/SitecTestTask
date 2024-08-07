@@ -75,7 +75,7 @@ public class XmlProcessor
         var groupedByLevel = addressObjects.GroupBy(a => a.Level);
 
         StringBuilder reportBuilder = new StringBuilder();
-        reportBuilder.AppendLine($"Дата изменений: {DateTime.Now:dd.MM.yyyy}, {DateTime.UtcNow}");
+        reportBuilder.AppendLine($"Дата изменений: {DateTime.Now:dd.MM.yyyy}");
         reportBuilder.AppendLine();
 
         foreach (var group in groupedByLevel)
