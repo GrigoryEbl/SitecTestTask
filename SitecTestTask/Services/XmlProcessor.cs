@@ -20,15 +20,13 @@ public class XmlProcessor
             return;
         }
 
-        string levelsFilePath = Path.Combine(extractPath, "AS_OBJECT_LEVELS.xml");
-        var levelsDictionary = LoadObjectLevels(levelsFilePath);
-
+        var levelsDictionary = LoadObjectLevels(extractPath);
+       
         var addressObjects = new List<AddressObject>();
         DateTime? updateDate = null;
 
         foreach (var file in files)
         {
-            Console.WriteLine($"Обработка файла: {file}");
             ProcessFile(file, addressObjects, ref updateDate, levelsDictionary);
         }
 
@@ -40,11 +38,11 @@ public class XmlProcessor
 
         GenerateReport(addressObjects, updateDate ?? DateTime.Now);
     }
-
-
+     
     private string[] GetFiles(string path)
     {
-        return Directory.GetFiles(path, "AS_ADDR_OBJ_*.xml", SearchOption.AllDirectories);
+        string pattern = "AS_ADDR_OBJ_*.xml";
+        return Directory.GetFiles(path, pattern, SearchOption.AllDirectories);
     }
 
     private void ProcessFile(string filePath, List<AddressObject> addressObjects, ref DateTime? updateDate, Dictionary<int, string> levelsDictionary)
@@ -75,8 +73,6 @@ public class XmlProcessor
                           };
 
             addressObjects.AddRange(objects);
-
-            Console.WriteLine($"Количество объектов в файле: {objects.Count()}");
         }
         catch (Exception ex)
         {
@@ -84,8 +80,17 @@ public class XmlProcessor
         }
     }
 
-    private Dictionary<int, string> LoadObjectLevels(string filePath)
+    private Dictionary<int, string> LoadObjectLevels(string extractPath)
     {
+        string pattern = "AS_OBJECT_LEVELS_*.xml";
+        string filePath = Directory.GetFiles(extractPath, pattern, SearchOption.TopDirectoryOnly).FirstOrDefault();
+
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Console.WriteLine("Файл уровней объектов не найден.");
+            return new Dictionary<int, string>();
+        }
+
         var levels = new Dictionary<int, string>();
 
         try
@@ -95,9 +100,23 @@ public class XmlProcessor
 
             foreach (var levelElement in levelElements)
             {
-                int level = (int)levelElement.Attribute("LEVEL");
-                string name = (string)levelElement.Attribute("NAME");
-                levels[level] = name;
+                var levelAttr = levelElement.Attribute("LEVEL");
+                var nameAttr = levelElement.Attribute("NAME");
+
+                if (levelAttr == null || nameAttr == null)
+                {
+                    Console.WriteLine($"Ошибка: отсутствуют необходимые атрибуты в элементе {levelElement}");
+                    continue;
+                }
+
+                if (int.TryParse(levelAttr.Value, out int level))
+                {
+                    levels[level] = nameAttr.Value;
+                }
+                else
+                {
+                    Console.WriteLine($"Ошибка: некорректное значение уровня '{levelAttr.Value}' в элементе {levelElement}");
+                }
             }
         }
         catch (Exception ex)
@@ -108,11 +127,13 @@ public class XmlProcessor
         return levels;
     }
 
+
     private void GenerateReport(List<AddressObject> addressObjects, DateTime updateDate)
     {
+        StringBuilder reportBuilder = new StringBuilder();
         var groupedByLevel = addressObjects.GroupBy(a => a.Level);
 
-        StringBuilder reportBuilder = new StringBuilder();
+        reportBuilder.AppendLine();
         reportBuilder.AppendLine($"Дата изменений: {updateDate:dd.MM.yyyy}");
         reportBuilder.AppendLine();
 
