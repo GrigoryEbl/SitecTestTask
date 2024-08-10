@@ -20,12 +20,16 @@ public class XmlProcessor
             return;
         }
 
+        string levelsFilePath = Path.Combine(extractPath, "AS_OBJECT_LEVELS.xml");
+        var levelsDictionary = LoadObjectLevels(levelsFilePath);
+
         var addressObjects = new List<AddressObject>();
+        DateTime? updateDate = null;
 
         foreach (var file in files)
         {
             Console.WriteLine($"Обработка файла: {file}");
-            ProcessFile(file, addressObjects);
+            ProcessFile(file, addressObjects, ref updateDate, levelsDictionary);
         }
 
         if (addressObjects.Count == 0)
@@ -34,19 +38,32 @@ public class XmlProcessor
             return;
         }
 
-        GenerateReport(addressObjects);
+        GenerateReport(addressObjects, updateDate ?? DateTime.Now);
     }
+
 
     private string[] GetFiles(string path)
     {
         return Directory.GetFiles(path, "AS_ADDR_OBJ_*.xml", SearchOption.AllDirectories);
     }
 
-    private void ProcessFile(string filePath, List<AddressObject> addressObjects)
+    private void ProcessFile(string filePath, List<AddressObject> addressObjects, ref DateTime? updateDate, Dictionary<int, string> levelsDictionary)
     {
         try
         {
             XDocument doc = XDocument.Load(filePath);
+
+            var dateAttribute = doc.Descendants(_addressObjectXPath)
+                                   .FirstOrDefault()
+                                   ?.Attribute("UPDATEDATE");
+
+            if (dateAttribute != null && DateTime.TryParse(dateAttribute.Value, out DateTime parsedDate))
+            {
+                if (!updateDate.HasValue || parsedDate > updateDate.Value)
+                {
+                    updateDate = parsedDate;
+                }
+            }
 
             var objects = from e in doc.Descendants(_addressObjectXPath)
                           where (string)e.Attribute(_isActiveAttribute) == "1"
@@ -54,13 +71,10 @@ public class XmlProcessor
                           {
                               Name = (string)e.Attribute("NAME"),
                               ShortName = (string)e.Attribute("TYPENAME"),
-                              Level = (int?)e.Attribute("LEVEL") ?? 0
+                              Level = levelsDictionary.TryGetValue((int?)e.Attribute("LEVEL") ?? 0, out var levelName) ? levelName : "Неизвестный уровень"
                           };
 
-            foreach (var obj in objects)
-            {
-                addressObjects.Add(obj);
-            }
+            addressObjects.AddRange(objects);
 
             Console.WriteLine($"Количество объектов в файле: {objects.Count()}");
         }
@@ -70,12 +84,36 @@ public class XmlProcessor
         }
     }
 
-    private void GenerateReport(List<AddressObject> addressObjects)
+    private Dictionary<int, string> LoadObjectLevels(string filePath)
+    {
+        var levels = new Dictionary<int, string>();
+
+        try
+        {
+            XDocument doc = XDocument.Load(filePath);
+            var levelElements = doc.Descendants("OBJECTLEVEL");
+
+            foreach (var levelElement in levelElements)
+            {
+                int level = (int)levelElement.Attribute("LEVEL");
+                string name = (string)levelElement.Attribute("NAME");
+                levels[level] = name;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при загрузке уровней объектов: {ex.Message}");
+        }
+
+        return levels;
+    }
+
+    private void GenerateReport(List<AddressObject> addressObjects, DateTime updateDate)
     {
         var groupedByLevel = addressObjects.GroupBy(a => a.Level);
 
         StringBuilder reportBuilder = new StringBuilder();
-        reportBuilder.AppendLine($"Дата изменений: {DateTime.Now:dd.MM.yyyy}");
+        reportBuilder.AppendLine($"Дата изменений: {updateDate:dd.MM.yyyy}");
         reportBuilder.AppendLine();
 
         foreach (var group in groupedByLevel)

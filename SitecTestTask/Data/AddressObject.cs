@@ -2,5 +2,5 @@
 {
     public string Name { get; set; }
     public string ShortName { get; set; }
-    public int Level { get; set; }
+    public string Level { get; set; }
 }
