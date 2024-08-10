@@ -9,6 +9,8 @@ public class XmlProcessor
 {
     private const string _addressObjectXPath = "OBJECT";
     private const string _isActiveAttribute = "ISACTIVE";
+    private const string _searchPatternAddress = "AS_ADDR_OBJ_*.xml";
+    private const string _searchPatternLevel = "AS_OBJECT_LEVELS_*.xml";
 
     public void ProcessExtractedFiles(string extractPath)
     {
@@ -21,7 +23,7 @@ public class XmlProcessor
         }
 
         var levelsDictionary = LoadObjectLevels(extractPath);
-       
+
         var addressObjects = new List<AddressObject>();
         DateTime? updateDate = null;
 
@@ -35,14 +37,15 @@ public class XmlProcessor
             Console.WriteLine("Нет активных адресных объектов.");
             return;
         }
-
-        GenerateReport(addressObjects, updateDate ?? DateTime.Now);
+        else
+        {
+            GenerateReport(addressObjects, updateDate ?? DateTime.Now);
+        }
     }
-     
+
     private string[] GetFiles(string path)
     {
-        string pattern = "AS_ADDR_OBJ_*.xml";
-        return Directory.GetFiles(path, pattern, SearchOption.AllDirectories);
+        return Directory.GetFiles(path, _searchPatternAddress, SearchOption.AllDirectories);
     }
 
     private void ProcessFile(string filePath, List<AddressObject> addressObjects, ref DateTime? updateDate, Dictionary<int, string> levelsDictionary)
@@ -82,8 +85,7 @@ public class XmlProcessor
 
     private Dictionary<int, string> LoadObjectLevels(string extractPath)
     {
-        string pattern = "AS_OBJECT_LEVELS_*.xml";
-        string filePath = Directory.GetFiles(extractPath, pattern, SearchOption.TopDirectoryOnly).FirstOrDefault();
+        string filePath = Directory.GetFiles(extractPath, _searchPatternLevel, SearchOption.TopDirectoryOnly).FirstOrDefault();
 
         if (string.IsNullOrEmpty(filePath))
         {
@@ -126,7 +128,6 @@ public class XmlProcessor
 
         return levels;
     }
-
 
     private void GenerateReport(List<AddressObject> addressObjects, DateTime updateDate)
     {
