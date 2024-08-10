@@ -1,6 +1,6 @@
 ﻿class Program
 {
-    private const string _archiveUrl = "https://fias-file.nalog.ru/downloads/2024.08.06/gar_delta_xml.zip";
+    private const string _archiveUrl = "https://fias.nalog.ru/Public/Downloads/Actual/gar_delta_xml.zip";
     private const string _archivePath = "gar_delta_xml.zip";
     private const string _extractPath = "extracted";
 
